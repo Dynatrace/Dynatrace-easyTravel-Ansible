@@ -1,0 +1,3 @@
+- src: geerlingguy.nginx
+- src: greendayonfire.mongodb
+- src: https://github.com/metmajer/ansible-tomcat
