@@ -20,8 +20,6 @@ An [Apache Tomcat](http://tomcat.apache.org/) instance running the easyTravel Cu
 
 An [NGINX](http://www.nginx.org) reverse-proxy sitting in front of the Customer Frontend listening on port 80.
 
-Want to run our easyTravel Demo Application in Docker? Here's another project does 
-
 ## Sample Usage
 
 1) Add the hosts you wish to into Ansible's `hosts` file  
