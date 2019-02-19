@@ -1,6 +1,6 @@
 # Dynatrace-easyTravel-Ansible
 
-This Ansible role installs the Dynatrace[easyTravel Demo Application](https://community.dynatrace.com/community/display/DL/Demo+Applications+-+easyTravel) with the artifacts in the `files` folder.
+This Ansible role installs the Dynatrace [easyTravel Demo Application](https://community.dynatrace.com/community/display/DL/Demo+Applications+-+easyTravel) with the artifacts in the `files` folder.
 
 ## Dynatrace easyTravel Components
 
