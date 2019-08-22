@@ -1,0 +1,124 @@
+---
+- hosts: all
+
+  vars:
+    jdk:
+      package_subdir: '8u60-b27'
+      package: 'jdk-8u60-linux-x64.tar.gz'
+      version: '1.8.0_60'
+    frontend:
+      install_dir: "/opt/tomcat-{{ tomcat_version }}.frontend"
+      port: 8080
+    backend:
+      install_dir: "/opt/tomcat-{{ tomcat_version }}.backend"
+      hostname: localhost
+      port: 8091
+    mongodb:
+      hostname: localhost
+      port: 27017
+      database:
+        path: /data/db
+
+  pre_tasks:
+    - blockinfile:
+        dest: /etc/hosts
+        block: |
+          127.0.0.1  www.easytravel.com
+          127.0.0.1  frontend.easytravel.com
+          127.0.0.1  backend.easytravel.com
+          127.0.0.1  dynatrace.easytravel.com
+      sudo: yes
+  
+  roles:
+    - role: geerlingguy.nginx
+      sudo: yes
+
+    - role: ansible-tomcat
+      tomcat_install_dir: "{{ frontend.install_dir }}"
+      tomcat_address: localhost
+      tomcat_port: "{{ frontend.port }}"
+      tomcat_shutdown_port: 8005
+      tomcat_redirect_port: 8443
+      tomcat_log_level: INFO
+      tomcat_catalina_opts: "-Dcom.dynatrace.easytravel.persistence.mode=mongodb -Dcom.dynatrace.easytravel.installation.mode=APM -Dconfig.backendHost={{ backend.hostname }}"
+      tomcat_roles:
+        - name: manager
+        - name: manager-gui
+        - name: manager-script
+      tomcat_users:
+        - name: admin
+          password: admin
+          roles: manager,manager-gui,manager-script,admin-gui
+
+    - role: ansible-tomcat
+      tomcat_install_dir: "{{ backend.install_dir }}"
+      tomcat_address: localhost
+      tomcat_port: "{{ backend.port }}"
+      tomcat_shutdown_port: 8006
+      tomcat_redirect_port: 8444
+      tomcat_log_level: INFO
+      tomcat_catalina_opts: "-Dcom.dynatrace.easytravel.persistence.mode=mongodb -Dcom.dynatrace.easytravel.installation.mode=APM -Dcom.dynatrace.easytravel.propertiesfile=WEB-INF/classes/easyTravelConfig.properties -Dconfig.bootPlugins=DummyNativeApplication,DummyNativeApplication.NET,DummyPaymentService -Dconfig.mongoDbInstances={{ mongodb.hostname }}:{{ mongodb.port }}"
+      tomcat_roles:
+        - name: manager
+        - name: manager-gui
+        - name: manager-script
+      tomcat_users:
+        - name: admin
+          password: admin
+          roles: manager,manager-gui,manager-script,admin-gui
+
+    - role: greendayonfire.mongodb
+      mongodb_conf_dbpath: "{{ mongodb.database.path }}"
+      sudo: yes
+
+  post_tasks:
+    # nginx
+    - name: Deploy 'nginx.conf' file
+      copy:
+        src: files/nginx/conf/nginx.conf
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '644'
+      sudo: yes
+
+    # frontend
+    - name: Deploy easyTravel Customer Frontend Application
+      copy:
+        src: files/frontend/customer.war
+        dest: "{{ frontend.install_dir }}/webapps/"
+
+    - name: Deploy external libs
+      copy:
+        src: files/frontend/lib/
+        dest: "{{ frontend.install_dir }}/lib"
+
+    - name: Make easyTravel Business Backend application base '/' context
+      command: "mv {{ frontend.install_dir }}/webapps/customer.war {{ frontend.install_dir }}/webapps/ROOT.war"
+
+    # backend
+    - name: Deploy easyTravel Business Backend Application
+      copy:
+        src: files/backend/business.war
+        dest: "{{ backend.install_dir }}/webapps/"
+
+    - name: Make easyTravel Business Backend application base '/' context
+      command: "mv {{ backend.install_dir }}/webapps/business.war {{ backend.install_dir }}/webapps/ROOT.war"
+
+    # mongodb
+    - name: Deploy easyTravel database
+      unarchive:
+        src: files/mongodb/database.tar.gz
+        dest: "{{ mongodb.database.path }}"
+        owner: mongodb
+        group: nogroup
+      sudo: yes
+
+    - name: Deploy 'mongod.conf' file
+      copy:
+        src: files/mongodb/conf/mongod.conf
+        dest: /etc/mongod.conf
+        owner: root
+        group: root
+        mode: 644
+      sudo: yes
